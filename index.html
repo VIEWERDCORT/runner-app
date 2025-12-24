@@ -2,33 +2,127 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Runner App - Tracker</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Runner App - Pro</title>
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; background: #f0f0f0; }
-        #stats { font-size: 1.5em; margin: 20px; }
-        button { padding: 15px 30px; font-size: 1em; cursor: pointer; }
+        /* Diseño básico y responsivo */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #1a1a1a;
+            color: white;
+        }
+
+        .container {
+            text-align: center;
+            background: #2d2d2d;
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            width: 80%;
+            max-width: 400px;
+        }
+
+        .stat-box {
+            margin: 20px 0;
+        }
+
+        .label {
+            font-size: 0.9rem;
+            color: #888;
+            text-transform: uppercase;
+        }
+
+        .value {
+            font-size: 3rem;
+            font-weight: bold;
+            color: #00ff88;
+            display: block;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        button {
+            padding: 15px 25px;
+            border: none;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        button:active { transform: scale(0.95); }
+
+        .btn-start { background-color: #00ff88; color: #1a1a1a; }
+        .btn-stop { background-color: #ff4444; color: white; }
+
+        #status {
+            margin-top: 15px;
+            font-size: 0.8rem;
+            color: #555;
+        }
     </style>
 </head>
 <body>
-    <h1>Mi App de Corredores</h1>
-    
-    <div id="stats">
-        <p>Distancia: <span id="distancia">0</span> km</p>
-        <p>Tiempo: <span id="tiempo">00:00</span></p>
-    </div>
 
-    <button onclick="iniciarCarrera()">Iniciar Carrera</button>
-    <button onclick="detenerCarrera()">Detener</button>
+    <div class="container">
+        <h1>RUNNER TRACKER</h1>
+        
+        <div class="stat-box">
+            <span class="label">Distancia Recorrida</span>
+            <span id="distancia" class="value">0.00</span>
+            <span class="label">Kilómetros</span>
+        </div>
+
+        <div class="stat-box">
+            <span class="label">Tiempo Total</span>
+            <span id="tiempo" class="value">00:00</span>
+        </div>
+
+        <div class="controls">
+            <button class="btn-start" onclick="iniciarCarrera()">INICIAR</button>
+            <button class="btn-stop" onclick="detenerCarrera()">DETENER</button>
+        </div>
+
+        <div id="status">Esperando señal GPS...</div>
+    </div>
 
     <script>
         let watchID;
         let distanciaTotal = 0;
         let ultimaPosicion = null;
+        let tiempoInicio;
+        let intervaloTiempo;
 
+        // Inicia el rastreo
         function iniciarCarrera() {
-            if ("geolocation" in navigator) {
-                // Monitorea el movimiento del GPS
-                watchID = navigator.geolocation.watchPosition(posicion => {
+            if (!navigator.geolocation) {
+                alert("Tu navegador no soporta GPS.");
+                return;
+            }
+
+            // Reiniciar valores
+            distanciaTotal = 0;
+            ultimaPosicion = null;
+            document.getElementById('distancia').innerText = "0.00";
+            document.getElementById('status').innerText = "Rastreando movimiento...";
+            
+            tiempoInicio = Date.now();
+            clearInterval(intervaloTiempo);
+            intervaloTiempo = setInterval(actualizarCronometro, 1000);
+
+            // Iniciar seguimiento GPS de alta precisión
+            watchID = navigator.geolocation.watchPosition(
+                (posicion) => {
                     const { latitude, longitude } = posicion.coords;
                     
                     if (ultimaPosicion) {
@@ -40,11 +134,36 @@
                         document.getElementById('distancia').innerText = distanciaTotal.toFixed(2);
                     }
                     ultimaPosicion = { lat: latitude, lon: longitude };
-                }, error => console.error(error), { enableHighAccuracy: true });
-            }
+                },
+                (error) => {
+                    console.warn("Error GPS: ", error.message);
+                    document.getElementById('status').innerText = "Error de señal GPS";
+                },
+                { 
+                    enableHighAccuracy: true, 
+                    maximumAge: 0, 
+                    timeout: 5000 
+                }
+            );
         }
 
-        // Función matemática para calcular distancia en KM
+        // Detiene el rastreo
+        function detenerCarrera() {
+            if (watchID) navigator.geolocation.clearWatch(watchID);
+            clearInterval(intervaloTiempo);
+            document.getElementById('status').innerText = "Carrera finalizada";
+            alert(`¡Excelente! Recorriste ${distanciaTotal.toFixed(2)} km.`);
+        }
+
+        // Lógica del cronómetro
+        function actualizarCronometro() {
+            const segundosTotales = Math.floor((Date.now() - tiempoInicio) / 1000);
+            const mins = Math.floor(segundosTotales / 60).toString().padStart(2, '0');
+            const segs = (segundosTotales % 60).toString().padStart(2, '0');
+            document.getElementById('tiempo').innerText = `${mins}:${segs}`;
+        }
+
+        // Fórmula Matemática Haversine
         function calcularDistancia(lat1, lon1, lat2, lon2) {
             const R = 6371; // Radio de la Tierra en km
             const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -53,11 +172,6 @@
                       Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
             const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
             return R * c;
-        }
-
-        function detenerCarrera() {
-            navigator.geolocation.clearWatch(watchID);
-            alert("Carrera finalizada. Distancia total: " + distanciaTotal.toFixed(2) + " km");
         }
     </script>
 </body>
