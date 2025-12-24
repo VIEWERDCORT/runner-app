@@ -1,58 +1,64 @@
-let watchID;
-let distanciaTotal = 0;
-let ultimaPosicion = null;
-let tiempoInicio;
-let intervaloTiempo;
-
-function iniciarCarrera() {
-    distanciaTotal = 0;
-    tiempoInicio = Date.now();
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Runner App - Tracker</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; background: #f0f0f0; }
+        #stats { font-size: 1.5em; margin: 20px; }
+        button { padding: 15px 30px; font-size: 1em; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Mi App de Corredores</h1>
     
-    // Iniciar el cronómetro visual
-    intervaloTiempo = setInterval(actualizarCronometro, 1000);
+    <div id="stats">
+        <p>Distancia: <span id="distancia">0</span> km</p>
+        <p>Tiempo: <span id="tiempo">00:00</span></p>
+    </div>
 
-    if ("geolocation" in navigator) {
-        watchID = navigator.geolocation.watchPosition(posicion => {
-            const { latitude, longitude } = posicion.coords;
-            
-            if (ultimaPosicion) {
-                const d = calcularDistancia(
-                    ultimaPosicion.lat, ultimaPosicion.lon,
-                    latitude, longitude
-                );
-                distanciaTotal += d;
-                document.getElementById('distancia').innerText = distanciaTotal.toFixed(2);
+    <button onclick="iniciarCarrera()">Iniciar Carrera</button>
+    <button onclick="detenerCarrera()">Detener</button>
+
+    <script>
+        let watchID;
+        let distanciaTotal = 0;
+        let ultimaPosicion = null;
+
+        function iniciarCarrera() {
+            if ("geolocation" in navigator) {
+                // Monitorea el movimiento del GPS
+                watchID = navigator.geolocation.watchPosition(posicion => {
+                    const { latitude, longitude } = posicion.coords;
+                    
+                    if (ultimaPosicion) {
+                        const d = calcularDistancia(
+                            ultimaPosicion.lat, ultimaPosicion.lon,
+                            latitude, longitude
+                        );
+                        distanciaTotal += d;
+                        document.getElementById('distancia').innerText = distanciaTotal.toFixed(2);
+                    }
+                    ultimaPosicion = { lat: latitude, lon: longitude };
+                }, error => console.error(error), { enableHighAccuracy: true });
             }
-            ultimaPosicion = { lat: latitude, lon: longitude };
-        }, error => {
-            alert("Error al obtener GPS. Asegúrate de dar permisos.");
-        }, { 
-            enableHighAccuracy: true, // Forzar uso de GPS de alta precisión
-            maximumAge: 1000 
-        });
-    }
-}
+        }
 
-function actualizarCronometro() {
-    const tiempoActual = Date.now();
-    const diferencia = new Array(tiempoActual - tiempoInicio);
-    const segundosTotales = Math.floor((tiempoActual - tiempoInicio) / 1000);
-    
-    const minutos = Math.floor(segundosTotales / 60);
-    const segundos = segundosTotales % 60;
-    
-    // Formato 00:00
-    const tiempoFormateado = 
-        (minutos < 10 ? "0" + minutos : minutos) + ":" + 
-        (segundos < 10 ? "0" + segundos : segundos);
-    
-    document.getElementById('tiempo').innerText = tiempoFormateado;
-}
+        // Función matemática para calcular distancia en KM
+        function calcularDistancia(lat1, lon1, lat2, lon2) {
+            const R = 6371; // Radio de la Tierra en km
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
 
-function detenerCarrera() {
-    navigator.geolocation.clearWatch(watchID);
-    clearInterval(intervaloTiempo);
-    alert("Resumen: " + distanciaTotal.toFixed(2) + " km en " + document.getElementById('tiempo').innerText);
-}
-
-// (La función calcularDistancia se mantiene igual que la anterior)
+        function detenerCarrera() {
+            navigator.geolocation.clearWatch(watchID);
+            alert("Carrera finalizada. Distancia total: " + distanciaTotal.toFixed(2) + " km");
+        }
+    </script>
+</body>
+</html>
