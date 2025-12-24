@@ -1,0 +1,58 @@
+let watchID;
+let distanciaTotal = 0;
+let ultimaPosicion = null;
+let tiempoInicio;
+let intervaloTiempo;
+
+function iniciarCarrera() {
+    distanciaTotal = 0;
+    tiempoInicio = Date.now();
+    
+    // Iniciar el cronómetro visual
+    intervaloTiempo = setInterval(actualizarCronometro, 1000);
+
+    if ("geolocation" in navigator) {
+        watchID = navigator.geolocation.watchPosition(posicion => {
+            const { latitude, longitude } = posicion.coords;
+            
+            if (ultimaPosicion) {
+                const d = calcularDistancia(
+                    ultimaPosicion.lat, ultimaPosicion.lon,
+                    latitude, longitude
+                );
+                distanciaTotal += d;
+                document.getElementById('distancia').innerText = distanciaTotal.toFixed(2);
+            }
+            ultimaPosicion = { lat: latitude, lon: longitude };
+        }, error => {
+            alert("Error al obtener GPS. Asegúrate de dar permisos.");
+        }, { 
+            enableHighAccuracy: true, // Forzar uso de GPS de alta precisión
+            maximumAge: 1000 
+        });
+    }
+}
+
+function actualizarCronometro() {
+    const tiempoActual = Date.now();
+    const diferencia = new Array(tiempoActual - tiempoInicio);
+    const segundosTotales = Math.floor((tiempoActual - tiempoInicio) / 1000);
+    
+    const minutos = Math.floor(segundosTotales / 60);
+    const segundos = segundosTotales % 60;
+    
+    // Formato 00:00
+    const tiempoFormateado = 
+        (minutos < 10 ? "0" + minutos : minutos) + ":" + 
+        (segundos < 10 ? "0" + segundos : segundos);
+    
+    document.getElementById('tiempo').innerText = tiempoFormateado;
+}
+
+function detenerCarrera() {
+    navigator.geolocation.clearWatch(watchID);
+    clearInterval(intervaloTiempo);
+    alert("Resumen: " + distanciaTotal.toFixed(2) + " km en " + document.getElementById('tiempo').innerText);
+}
+
+// (La función calcularDistancia se mantiene igual que la anterior)
